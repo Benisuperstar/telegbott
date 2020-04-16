@@ -61,7 +61,7 @@ def location(message):
         zoom = 17  # Масштаб карты на старте. Изменяется от 1 до 19
         size = str(650) + "x" + str(450)
         markers = "color:red%7Clabel:I%7C" + ll
-        map_request_a = "https://maps.googleapis.com/maps/api/staticmap?size={size}&zoom={z}&center={ll}&markers={markers}&key=AIzaSyC87S3ttehSCmIa76r7IE_omWk-3dEH1Rg".format(
+        map_request_a = "https://maps.googleapis.com/maps/api/staticmap?size={size}&zoom={z}&center={ll}&markers={markers}&key=###########".format(
             ll=ll, size=size, z=zoom, markers=markers)
         response = requests.get(map_request_a)
         map_file = "map.png"
@@ -90,7 +90,7 @@ def location(message):
             markers_tho = "color:red%7Clabel:I%7C" + lat_lon
             distance_trip = round(distance.distance(ll, lat_lon).km, 1)
 
-            map_request_b = "https://maps.googleapis.com/maps/api/staticmap?size={size}&zoom={z}&center={ll}&markers={markers_tho}&key=AIzaSyC87S3ttehSCmIa76r7IE_omWk-3dEH1Rg".format(
+            map_request_b = "https://maps.googleapis.com/maps/api/staticmap?size={size}&zoom={z}&center={ll}&markers={markers_tho}&key=#####".format(
                 ll=lat_lon, size=size, z=zoom,
                 markers_tho=markers_tho)
             response_b = requests.get(map_request_b)
@@ -102,14 +102,14 @@ def location(message):
                 print("Ошибка записи временного файла:", error)
                 ############
             now = datetime.now()
-            gmaps = googlemaps.Client(key='AIzaSyC87S3ttehSCmIa76r7IE_omWk-3dEH1Rg')
+            gmaps = googlemaps.Client(key='###3')
             result = gmaps.directions(ll, lat_lon, mode="driving", departure_time=now)
             raw = result[0]['overview_polyline']['points']
             print(raw)
             points = polyline.decode(raw)
             pl = "|".join(["{0},{1}".format(p[0], p[1]) for p in points])
             path = "color:0xff0000ff |weight:5|"+pl
-            map_request_c = "https://maps.googleapis.com/maps/api/staticmap?size={size}&markers={markers}&markers={markers_tho}&path={path}&key=AIzaSyC87S3ttehSCmIa76r7IE_omWk-3dEH1Rg".format(
+            map_request_c = "https://maps.googleapis.com/maps/api/staticmap?size={size}&markers={markers}&markers={markers_tho}&path={path}&key=#####".format(
                 size=size, markers=markers,
                 markers_tho=markers_tho, path=path)
             response_c = requests.get(map_request_c)
