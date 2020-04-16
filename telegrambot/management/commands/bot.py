@@ -1,9 +1,12 @@
+import requests
 import telebot
 from django.conf import settings
 from geopy import distance
 from geopy.geocoders import Nominatim
 from telebot import types
-import urllib.request
+import googlemaps
+from datetime import datetime
+import polyline
 from telegrambot.models import Profile
 
 bot = telebot.TeleBot(token=settings.TOKEN)
@@ -54,58 +57,79 @@ def location(message):
     if message.location is not None:
         lon = message.location.longitude
         lat = message.location.latitude
-        ll_one = str(lat) + "," + str(lon) #для геокодинга
-        ll = str(lon) + "," + str(lat) #для запроса
-        zoom = 16  # Масштаб карты на старте. Изменяется от 1 до 19
-        type = "map,trf,skl"  # Другие значения "sat", "sat,skl
-        pt = str(lon) + "," + str(lat) + "," + str("pmnts")  # МАРКЕР
-        size = str(650) + "," + str(450)
-        scale = 1.5  # увеличение объектов на карте
-        map_request_a = "http://static-maps.yandex.ru/1.x/?ll={ll}&size={size}&z={z}&l={type}&pt={pt}&scale={scale}".format(
-            ll=ll, size=size, z=zoom,
-            type=type, pt=pt, scale=scale)
-        url = map_request_a
-        img = urllib.request.urlopen(url).read()
-        out = open("img.png", "wb")
-        out.write(img)
-        out.close()
-        geolocator = Nominatim(user_agent="specify_your_app_name_here")
-        loc = geolocator.reverse(ll_one)
-        photo = open('img.png', 'rb')
+        ll = str(lat) + "," + str(lon)  # для геокодинга
+        zoom = 17  # Масштаб карты на старте. Изменяется от 1 до 19
+        size = str(650) + "x" + str(450)
+        markers = "color:red%7Clabel:I%7C" + ll
+        map_request_a = "https://maps.googleapis.com/maps/api/staticmap?size={size}&zoom={z}&center={ll}&markers={markers}&key=AIzaSyC87S3ttehSCmIa76r7IE_omWk-3dEH1Rg".format(
+            ll=ll, size=size, z=zoom, markers=markers)
+        response = requests.get(map_request_a)
+        map_file = "map.png"
+        try:
+            with open(map_file, "wb") as file:
+                file.write(response.content)
+        except IOError as ex:
+            print("Ошибка записи временного файла:", ex)
+        photo = open('map.png', 'rb')
         bot.send_photo(message.chat.id, photo)
+        geolocator = Nominatim(user_agent="specify_your_app_name_here")
+        loc = geolocator.reverse(ll)
         bot.send_message(message.chat.id,
                          f'Вы указали адрес посадки {loc.address}.\n'
-                         f'Теперь укажите адрес сообщением',)
+                         f'Теперь укажите адрес куда поедите сообщением', )
 
         @bot.message_handler(content_types=['text'])
         def handle_message(message):
-                grodno_address = "Гродно"
-                address_trip = grodno_address + " " + message.text
-                # Получаем координаты для 2 точки
-                loc_one = geolocator.geocode(address_trip)
-                lan_to = loc_one.latitude
-                lon_to = loc_one.longitude
-                lat_lon = str(lan_to) + "," + str(lon_to) # для геокодинга
-                distance_trip = round(distance.distance(ll_one, lat_lon).km, 1)
+            grodno_address = "Гродно"
+            address_trip = grodno_address + " " + message.text
+            # Получаем координаты для 2 точки
+            loc_tho = geolocator.geocode(address_trip)
+            lan_tho = loc_tho.latitude
+            lon_tho = loc_tho.longitude
+            lat_lon = str(lan_tho) + "," + str(lon_tho)  # для геокодинга
+            markers_tho = "color:red%7Clabel:I%7C" + lat_lon
+            distance_trip = round(distance.distance(ll, lat_lon).km, 1)
 
-                ll = str(lon_to) + "," + str(lan_to)  # для запроса
-                pt = str(lon_to) + "," + str(lan_to) + "," + str("flag")  # МАРКЕР
-                map_request_b = "http://static-maps.yandex.ru/1.x/?ll={ll}&size={size}&z={z}&l={type}&pt={pt}&scale={scale}".format(
-                    ll=ll, size=size, z=zoom,
-                    type=type, pt=pt, scale=scale)
-                url_b = map_request_b
-                img_b = urllib.request.urlopen(url_b).read()
-                out_b = open("img1.png", "wb")
-                out_b.write(img_b)
-                out_b.close()
-                photo_b = open('img1.png', 'rb')
-                bot.send_photo(message.chat.id, photo_b)
-                bot.send_message(message.chat.id,
-                                 f'Ваш маршрут:  {loc.address}\n'
-                                 f'############################\n'
-                                 f'===>{loc_one.address}\n'
-                                 f'Расcтояние маршрута = {distance_trip}/км\n'
-                                 f'Ожидайте машину🚕 ')
+            map_request_b = "https://maps.googleapis.com/maps/api/staticmap?size={size}&zoom={z}&center={ll}&markers={markers_tho}&key=AIzaSyC87S3ttehSCmIa76r7IE_omWk-3dEH1Rg".format(
+                ll=lat_lon, size=size, z=zoom,
+                markers_tho=markers_tho)
+            response_b = requests.get(map_request_b)
+            map_file_tho = "map_tho.png"
+            try:
+                with open(map_file_tho, "wb") as file_tho:
+                    file_tho.write(response_b.content)
+            except IOError as error:
+                print("Ошибка записи временного файла:", error)
+                ############
+            now = datetime.now()
+            gmaps = googlemaps.Client(key='AIzaSyC87S3ttehSCmIa76r7IE_omWk-3dEH1Rg')
+            result = gmaps.directions(ll, lat_lon, mode="driving", departure_time=now)
+            raw = result[0]['overview_polyline']['points']
+            print(raw)
+            points = polyline.decode(raw)
+            pl = "|".join(["{0},{1}".format(p[0], p[1]) for p in points])
+            path = "color:0xff0000ff |weight:5|"+pl
+            map_request_c = "https://maps.googleapis.com/maps/api/staticmap?size={size}&markers={markers}&markers={markers_tho}&path={path}&key=AIzaSyC87S3ttehSCmIa76r7IE_omWk-3dEH1Rg".format(
+                size=size, markers=markers,
+                markers_tho=markers_tho, path=path)
+            response_c = requests.get(map_request_c)
+            map_file_c = "map_c.png"
+            try:
+                with open(map_file_c, "wb") as file_c:
+                    file_c.write(response_c.content)
+            except IOError as error:
+                print("Ошибка записи временного файла:", error)
+            ###############
+            photo_b = open('map_tho.png', 'rb')
+            bot.send_photo(message.chat.id, photo_b)
+            photo_c = open('map_c.png', 'rb')
+            bot.send_photo(message.chat.id, photo_c)
+            bot.send_message(message.chat.id,
+                             f'Ваш маршрут:  {loc.address}\n'
+                             f'############################\n'
+                             f'===>{loc_tho.address}\n'
+                             f'Расcтояние маршрута = {distance_trip}/км\n'
+                             f'Ожидайте машину🚕 ')
 
 
 @bot.message_handler(content_types=['contact'])
